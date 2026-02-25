@@ -1,0 +1,855 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="initial-scale=1,user-scalable=no,maximum-scale=1,width=device-width">
+        <meta name="mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <link rel="stylesheet" href="css/leaflet.css">
+        <link rel="stylesheet" href="css/L.Control.Layers.Tree.css">
+        <link rel="stylesheet" href="css/qgis2web.css">
+        <link rel="stylesheet" href="css/fontawesome-all.min.css">
+        <link rel="stylesheet" href="css/MarkerCluster.css">
+        <link rel="stylesheet" href="css/MarkerCluster.Default.css">
+        <link rel="stylesheet" href="css/filter.css">
+<link rel="stylesheet" href="css/nouislider.min.css">
+        <link rel="stylesheet" href="css/leaflet.photon.css">
+        <link rel="stylesheet" href="css/leaflet-measure.css">
+        <style>
+        #map {
+            width: 1526px;
+            height: 892px;
+        }
+        </style>
+        <title></title>
+    </head>
+    <body>
+        <div id="map">
+        </div>
+        <script src="js/qgis2web_expressions.js"></script>
+        <script src="js/leaflet.js"></script>
+        <script src="js/L.Control.Layers.Tree.min.js"></script>
+        <script src="js/leaflet.rotatedMarker.js"></script>
+        <script src="js/leaflet.pattern.js"></script>
+        <script src="js/leaflet-hash.js"></script>
+        <script src="js/Autolinker.min.js"></script>
+        <script src="js/rbush.min.js"></script>
+        <script src="js/labelgun.min.js"></script>
+        <script src="js/labels.js"></script>
+        <script src="js/leaflet.photon.js"></script>
+        <script src="js/leaflet-measure.js"></script>
+        <script src="js/leaflet.markercluster.js"></script>
+        <script src="js/tailDT.js"></script>
+<script src="js/nouislider.min.js"></script>
+<script src="js/wNumb.js"></script>
+        <script src="data/Limiteadmin1_CIV_1.js"></script>
+        <script src="data/Sitedesurveillance_2.js"></script>
+        <script>
+        var highlightLayer;
+        function highlightFeature(e) {
+            highlightLayer = e.target;
+            highlightLayer.openPopup();
+        }
+        var map = L.map('map', {
+            zoomControl:false, maxZoom:28, minZoom:1
+        }).fitBounds([[3.894160833535639,-12.214627328874316],[11.498331991039787,0.8064477767844718]]);
+        var hash = new L.Hash(map);
+        map.attributionControl.setPrefix('<a href="https://github.com/tomchadwin/qgis2web" target="_blank">qgis2web</a> &middot; <a href="https://leafletjs.com" title="A JS library for interactive maps">Leaflet</a> &middot; <a href="https://qgis.org">QGIS</a>');
+        var autolinker = new Autolinker({truncate: {length: 30, location: 'smart'}});
+        // remove popup's row if "visible-with-data"
+        function removeEmptyRowsFromPopupContent(content, feature) {
+         var tempDiv = document.createElement('div');
+         tempDiv.innerHTML = content;
+         var rows = tempDiv.querySelectorAll('tr');
+         for (var i = 0; i < rows.length; i++) {
+             var td = rows[i].querySelector('td.visible-with-data');
+             var key = td ? td.id : '';
+             if (td && td.classList.contains('visible-with-data') && feature.properties[key] == null) {
+                 rows[i].parentNode.removeChild(rows[i]);
+             }
+         }
+         return tempDiv.innerHTML;
+        }
+        // modify popup if contains media
+        function addClassToPopupIfMedia(content, popup) {
+            var tempDiv = document.createElement('div');
+            tempDiv.innerHTML = content;
+            var imgTd = tempDiv.querySelector('td img');
+            if (imgTd) {
+                var src = imgTd.getAttribute('src');
+                if (/\.(jpg|jpeg|png|gif|bmp|webp|avif)$/i.test(src)) {
+                    popup._contentNode.classList.add('media');
+                    setTimeout(function() {
+                        popup.update();
+                    }, 10);
+                } else if (/\.(mp3|wav|ogg|aac)$/i.test(src)) {
+                    var audio = document.createElement('audio');
+                    audio.controls = true;
+                    audio.src = src;
+                    imgTd.parentNode.replaceChild(audio, imgTd);
+                    popup._contentNode.classList.add('media');
+                    setTimeout(function() {
+                        popup.setContent(tempDiv.innerHTML);
+                        popup.update();
+                    }, 10);
+                } else if (/\.(mp4|webm|ogg|mov)$/i.test(src)) {
+                    var video = document.createElement('video');
+                    video.controls = true;
+                    video.src = src;
+                    video.style.width = "400px";
+                    video.style.height = "300px";
+                    video.style.maxHeight = "60vh";
+                    video.style.maxWidth = "60vw";
+                    imgTd.parentNode.replaceChild(video, imgTd);
+                    popup._contentNode.classList.add('media');
+                    // Aggiorna il popup quando il video carica i metadati
+                    video.addEventListener('loadedmetadata', function() {
+                        popup.update();
+                    });
+                    setTimeout(function() {
+                        popup.setContent(tempDiv.innerHTML);
+                        popup.update();
+                    }, 10);
+                } else {
+                    popup._contentNode.classList.remove('media');
+                }
+            } else {
+                popup._contentNode.classList.remove('media');
+            }
+        }
+        var zoomControl = L.control.zoom({
+            position: 'topleft'
+        }).addTo(map);
+        var measureControl = new L.Control.Measure({
+            position: 'topleft',
+            primaryLengthUnit: 'meters',
+            secondaryLengthUnit: 'kilometers',
+            primaryAreaUnit: 'sqmeters',
+            secondaryAreaUnit: 'hectares'
+        });
+        measureControl.addTo(map);
+        document.getElementsByClassName('leaflet-control-measure-toggle')[0].innerHTML = '';
+        document.getElementsByClassName('leaflet-control-measure-toggle')[0].className += ' fas fa-ruler';
+        var bounds_group = new L.featureGroup([]);
+        function setBounds() {
+        }
+        map.createPane('pane_OSMStandard_0');
+        map.getPane('pane_OSMStandard_0').style.zIndex = 400;
+        var layer_OSMStandard_0 = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            pane: 'pane_OSMStandard_0',
+            opacity: 1.0,
+            attribution: '<a href="https://www.openstreetmap.org/copyright">© OpenStreetMap contributors, CC-BY-SA</a>',
+            minZoom: 1,
+            maxZoom: 28,
+            minNativeZoom: 0,
+            maxNativeZoom: 19
+        });
+        layer_OSMStandard_0;
+        map.addLayer(layer_OSMStandard_0);
+        function pop_Limiteadmin1_CIV_1(feature, layer) {
+            layer.on({
+                mouseout: function(e) {
+                    if (typeof layer.closePopup == 'function') {
+                        layer.closePopup();
+                    } else {
+                        layer.eachLayer(function(feature){
+                            feature.closePopup()
+                        });
+                    }
+                },
+                mouseover: highlightFeature,
+            });
+            var popupContent = '<table>\
+                    <tr>\
+                        <th scope="row">DIST_SANIT</th>\
+                        <td>' + (feature.properties['DIST_SANIT'] !== null ? autolinker.link(String(feature.properties['DIST_SANIT']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_Limiteadmin1_CIV_1_0() {
+            return {
+                pane: 'pane_Limiteadmin1_CIV_1',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(133,182,111,0.0)',
+                interactive: true,
+            }
+        }
+        map.createPane('pane_Limiteadmin1_CIV_1');
+        map.getPane('pane_Limiteadmin1_CIV_1').style.zIndex = 401;
+        map.getPane('pane_Limiteadmin1_CIV_1').style['mix-blend-mode'] = 'normal';
+        var layer_Limiteadmin1_CIV_1 = new L.geoJson(json_Limiteadmin1_CIV_1, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_Limiteadmin1_CIV_1',
+            layerName: 'layer_Limiteadmin1_CIV_1',
+            pane: 'pane_Limiteadmin1_CIV_1',
+            onEachFeature: pop_Limiteadmin1_CIV_1,
+            style: style_Limiteadmin1_CIV_1_0,
+        });
+        bounds_group.addLayer(layer_Limiteadmin1_CIV_1);
+        map.addLayer(layer_Limiteadmin1_CIV_1);
+        function pop_Sitedesurveillance_2(feature, layer) {
+            layer.on({
+                mouseout: function(e) {
+                    if (typeof layer.closePopup == 'function') {
+                        layer.closePopup();
+                    } else {
+                        layer.eachLayer(function(feature){
+                            feature.closePopup()
+                        });
+                    }
+                },
+                mouseover: highlightFeature,
+            });
+            var popupContent = '<table>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LOCALITE'] !== null ? autolinker.link(String(feature.properties['LOCALITE']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">NOM</th>\
+                        <td>' + (feature.properties['NOM'] !== null ? autolinker.link(String(feature.properties['NOM']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['Nature'] !== null ? autolinker.link(String(feature.properties['Nature']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LAT'] !== null ? autolinker.link(String(feature.properties['LAT']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LONG'] !== null ? autolinker.link(String(feature.properties['LONG']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Type</th>\
+                        <td>' + (feature.properties['Type'] !== null ? autolinker.link(String(feature.properties['Type']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_Sitedesurveillance_2_0() {
+            return {
+                pane: 'pane_Sitedesurveillance_2',
+                radius: 4.0,
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(145,82,45,1.0)',
+                interactive: true,
+            }
+        }
+        map.createPane('pane_Sitedesurveillance_2');
+        map.getPane('pane_Sitedesurveillance_2').style.zIndex = 402;
+        map.getPane('pane_Sitedesurveillance_2').style['mix-blend-mode'] = 'normal';
+        var layer_Sitedesurveillance_2 = new L.geoJson(json_Sitedesurveillance_2, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_Sitedesurveillance_2',
+            layerName: 'layer_Sitedesurveillance_2',
+            pane: 'pane_Sitedesurveillance_2',
+            onEachFeature: pop_Sitedesurveillance_2,
+            pointToLayer: function (feature, latlng) {
+                var context = {
+                    feature: feature,
+                    variables: {}
+                };
+                return L.circleMarker(latlng, style_Sitedesurveillance_2_0(feature));
+            },
+        });
+        var cluster_Sitedesurveillance_2 = new L.MarkerClusterGroup({showCoverageOnHover: false,
+            spiderfyDistanceMultiplier: 2});
+        cluster_Sitedesurveillance_2.addLayer(layer_Sitedesurveillance_2);
+
+        bounds_group.addLayer(layer_Sitedesurveillance_2);
+        cluster_Sitedesurveillance_2.addTo(map);
+        var overlaysTree = [
+            {label: '<img src="legend/Sitedesurveillance_2.png" /> Site de surveillance', layer: cluster_Sitedesurveillance_2},
+            {label: '<img src="legend/Limiteadmin1_CIV_1.png" /> Limite admin 1_CIV', layer: layer_Limiteadmin1_CIV_1},
+            {label: "OSM Standard", layer: layer_OSMStandard_0, radioGroup: 'bm' },]
+        var lay = L.control.layers.tree(null, overlaysTree,{
+            //namedToggle: true,
+            //selectorBack: false,
+            //closedSymbol: '&#8862; &#x1f5c0;',
+            //openedSymbol: '&#8863; &#x1f5c1;',
+            //collapseAll: 'Collapse all',
+            //expandAll: 'Expand all',
+            collapsed: false, 
+        });
+        lay.addTo(map);
+		document.addEventListener("DOMContentLoaded", function() {
+            // set new Layers List height which considers toggle icon
+            function newLayersListHeight() {
+                var layerScrollbarElement = document.querySelector('.leaflet-control-layers-scrollbar');
+                if (layerScrollbarElement) {
+                    var layersListElement = document.querySelector('.leaflet-control-layers-list');
+                    var originalHeight = layersListElement.style.height 
+                        || window.getComputedStyle(layersListElement).height;
+                    var newHeight = parseFloat(originalHeight) - 50;
+                    layersListElement.style.height = newHeight + 'px';
+                }
+            }
+            var isLayersListExpanded = true;
+            var controlLayersElement = document.querySelector('.leaflet-control-layers');
+            var toggleLayerControl = document.querySelector('.leaflet-control-layers-toggle');
+            // toggle Collapsed/Expanded and apply new Layers List height
+            toggleLayerControl.addEventListener('click', function() {
+                if (isLayersListExpanded) {
+                    controlLayersElement.classList.remove('leaflet-control-layers-expanded');
+                } else {
+                    controlLayersElement.classList.add('leaflet-control-layers-expanded');
+                }
+                isLayersListExpanded = !isLayersListExpanded;
+                newLayersListHeight()
+            });	
+			// apply new Layers List height if toggle layerstree
+			if (controlLayersElement) {
+				controlLayersElement.addEventListener('click', function(event) {
+					var toggleLayerHeaderPointer = event.target.closest('.leaflet-layerstree-header-pointer span');
+					if (toggleLayerHeaderPointer) {
+						newLayersListHeight();
+					}
+				});
+			}
+            // Collapsed/Expanded at Start to apply new height
+            setTimeout(function() {
+                toggleLayerControl.click();
+            }, 10);
+            setTimeout(function() {
+                toggleLayerControl.click();
+            }, 10);
+            // Collapsed touch/small screen
+            var isSmallScreen = window.innerWidth < 650;
+            if (isSmallScreen) {
+                setTimeout(function() {
+                    controlLayersElement.classList.remove('leaflet-control-layers-expanded');
+                    isLayersListExpanded = !isLayersListExpanded;
+                }, 500);
+            }  
+        });       
+        setBounds();
+        var mapDiv = document.getElementById('map');
+        var row = document.createElement('div');
+        row.className="row";
+        row.id="all";
+        row.style.height = "100%";
+        var col1 = document.createElement('div');
+        col1.className="col9";
+        col1.id = "mapWindow";
+        col1.style.height = "99%";
+        col1.style.width = "80%";
+        col1.style.display = "inline-block";
+        var col2 = document.createElement('div');
+        col2.className="col3";
+        col2.id = "menu";
+        col2.style.display = "inline-block";
+        mapDiv.parentNode.insertBefore(row, mapDiv);
+        document.getElementById("all").appendChild(col1);
+        document.getElementById("all").appendChild(col2);
+        col1.appendChild(mapDiv)
+        var Filters = {"LONG": "real","LAT": "real","NOM": "str","LOCALITE": "str","DIST_SANIT": "str","Nature": "str","Type": "str"};
+        function filterFunc() {
+          map.eachLayer(function(lyr){
+          if ("options" in lyr && "dataVar" in lyr["options"]){
+            features = this[lyr["options"]["dataVar"]].features.slice(0);
+            try{
+              for (key in Filters){
+                keyS = key.replace(/[^a-zA-Z0-9_]/g, "")
+                if (Filters[key] == "str" || Filters[key] == "bool"){
+                  var selection = [];
+                  var options = document.getElementById("sel_" + keyS).options
+                  for (var i=0; i < options.length; i++) {
+                    if (options[i].selected) selection.push(options[i].value);
+                  }
+                    try{
+                      if (key in features[0].properties){
+                        for (i = features.length - 1;
+                          i >= 0; --i){
+                          if (selection.indexOf(
+                          features[i].properties[key])<0
+                          && selection.length>0) {
+                          features.splice(i,1);
+                          }
+                        }
+                      }
+                    } catch(err){
+                  }
+                }
+                if (Filters[key] == "int"){
+                  sliderVals =  document.getElementById(
+                    "div_" + keyS).noUiSlider.get();
+                  try{
+                    if (key in features[0].properties){
+                    for (i = features.length - 1; i >= 0; --i){
+                      if (parseInt(features[i].properties[key])
+                          < sliderVals[0]
+                          || parseInt(features[i].properties[key])
+                          > sliderVals[1]){
+                            features.splice(i,1);
+                          }
+                        }
+                      }
+                    } catch(err){
+                    }
+                  }
+                if (Filters[key] == "real"){
+                  sliderVals =  document.getElementById(
+                    "div_" + keyS).noUiSlider.get();
+                  try{
+                    if (key in features[0].properties){
+                    for (i = features.length - 1; i >= 0; --i){
+                      if (features[i].properties[key]
+                          < sliderVals[0]
+                          || features[i].properties[key]
+                          > sliderVals[1]){
+                            features.splice(i,1);
+                          }
+                        }
+                      }
+                    } catch(err){
+                    }
+                  }
+                if (Filters[key] == "date"
+                  || Filters[key] == "datetime"
+                  || Filters[key] == "time"){
+                  try{
+                    if (key in features[0].properties){
+                      HTMLkey = key.replace(/[&\/\\#,+()$~%.'":*?<>{} ]/g, '');
+                      startdate = document.getElementById("dat_" +
+                        HTMLkey + "_date1").value.replace(" ", "T");
+                      enddate = document.getElementById("dat_" +
+                        HTMLkey + "_date2").value.replace(" ", "T");
+                      for (i = features.length - 1; i >= 0; --i){
+                        if (features[i].properties[key] < startdate
+                          || features[i].properties[key] > enddate){
+                          features.splice(i,1);
+                        }
+                      }
+                    }
+                  } catch(err){
+                  }
+                }
+              }
+            } catch(err){
+            }
+          this[lyr["options"]["layerName"]].clearLayers();
+          this[lyr["options"]["layerName"]].addData(features);
+          }
+          })
+        }
+            document.getElementById("menu").appendChild(
+                document.createElement("div"));
+            var div_LONG = document.createElement("div");
+            div_LONG.id = "div_LONG";
+            div_LONG.className = "slider";
+            document.getElementById("menu").appendChild(div_LONG);
+            var lab_LONG = document.createElement('div');
+            lab_LONG.innerHTML  = 'LONG: <span id="val_LONG"></span>';
+            lab_LONG.className = 'filterlabel';
+            document.getElementById("menu").appendChild(lab_LONG);
+            var reset_LONG = document.createElement('div');
+            reset_LONG.innerHTML = 'clear filter';
+            reset_LONG.className = 'filterlabel';
+            lab_LONG.className = 'filterlabel';
+            reset_LONG.onclick = function() {
+                sel_LONG.noUiSlider.reset();
+            };
+            document.getElementById("menu").appendChild(reset_LONG);
+            var sel_LONG = document.getElementById('div_LONG');
+            noUiSlider.create(sel_LONG, {
+                connect: true,
+                start: [-7.616594, -2.796737],
+                range: {
+                min: -7.616594,
+                max: -2.796737
+                }
+            });
+            sel_LONG.noUiSlider.on('update', function (values) {
+            val_LONG = document.getElementById('val_LONG');
+            val_LONG.innerHTML = values.join(' - ');
+                filterFunc()
+            });
+            document.getElementById("menu").appendChild(
+                document.createElement("div"));
+            var div_LAT = document.createElement("div");
+            div_LAT.id = "div_LAT";
+            div_LAT.className = "slider";
+            document.getElementById("menu").appendChild(div_LAT);
+            var lab_LAT = document.createElement('div');
+            lab_LAT.innerHTML  = 'LAT: <span id="val_LAT"></span>';
+            lab_LAT.className = 'filterlabel';
+            document.getElementById("menu").appendChild(lab_LAT);
+            var reset_LAT = document.createElement('div');
+            reset_LAT.innerHTML = 'clear filter';
+            reset_LAT.className = 'filterlabel';
+            lab_LAT.className = 'filterlabel';
+            reset_LAT.onclick = function() {
+                sel_LAT.noUiSlider.reset();
+            };
+            document.getElementById("menu").appendChild(reset_LAT);
+            var sel_LAT = document.getElementById('div_LAT');
+            noUiSlider.create(sel_LAT, {
+                connect: true,
+                start: [4.773373, 9.506833],
+                range: {
+                min: 4.773373,
+                max: 9.506833
+                }
+            });
+            sel_LAT.noUiSlider.on('update', function (values) {
+            val_LAT = document.getElementById('val_LAT');
+            val_LAT.innerHTML = values.join(' - ');
+                filterFunc()
+            });
+            document.getElementById("menu").appendChild(
+                document.createElement("div"));
+            var div_NOM = document.createElement('div');
+            div_NOM.id = "div_NOM";
+            div_NOM.className= "filterselect";
+            document.getElementById("menu").appendChild(div_NOM);
+            sel_NOM = document.createElement('select');
+            sel_NOM.multiple = true;
+            sel_NOM.size = 10;
+            sel_NOM.id = "sel_NOM";
+            var NOM_options_str = "<option value='' unselected></option>";
+            sel_NOM.onchange = function(){filterFunc()};
+            NOM_options_str  += '<option value="Abengourou">Abengourou</option>';
+            NOM_options_str  += '<option value="Aboisso">Aboisso</option>';
+            NOM_options_str  += '<option value="Bayota">Bayota</option>';
+            NOM_options_str  += '<option value="Bediala">Bediala</option>';
+            NOM_options_str  += '<option value="Belleville">Belleville</option>';
+            NOM_options_str  += '<option value="Bingerville">Bingerville</option>';
+            NOM_options_str  += '<option value="Binoufla">Binoufla</option>';
+            NOM_options_str  += '<option value="Blanoufla">Blanoufla</option>';
+            NOM_options_str  += '<option value="Bondoukou">Bondoukou</option>';
+            NOM_options_str  += '<option value="Bonon">Bonon</option>';
+            NOM_options_str  += '<option value="Bouafle">Bouafle</option>';
+            NOM_options_str  += '<option value="Bouake">Bouake</option>';
+            NOM_options_str  += '<option value="Bouna">Bouna</option>';
+            NOM_options_str  += '<option value="Daloa">Daloa</option>';
+            NOM_options_str  += '<option value="Djenedoufla">Djenedoufla</option>';
+            NOM_options_str  += '<option value="Gagnoa">Gagnoa</option>';
+            NOM_options_str  += '<option value="Gobazra">Gobazra</option>';
+            NOM_options_str  += '<option value="Gonate">Gonate</option>';
+            NOM_options_str  += '<option value="Huafla">Huafla</option>';
+            NOM_options_str  += '<option value="Issia">Issia</option>';
+            NOM_options_str  += '<option value="Ketesso">Ketesso</option>';
+            NOM_options_str  += '<option value="Korhogo">Korhogo</option>';
+            NOM_options_str  += '<option value="Man">Man</option>';
+            NOM_options_str  += '<option value="Nassian">Nassian</option>';
+            NOM_options_str  += '<option value="Odienne">Odienne</option>';
+            NOM_options_str  += '<option value="Oume">Oume</option>';
+            NOM_options_str  += '<option value="Pelezi">Pelezi</option>';
+            NOM_options_str  += '<option value="Plateau">Plateau</option>';
+            NOM_options_str  += '<option value="San Pedro">San Pedro</option>';
+            NOM_options_str  += '<option value="Sietinfla">Sietinfla</option>';
+            NOM_options_str  += '<option value="Sinfra">Sinfra</option>';
+            NOM_options_str  += '<option value="Tai">Tai</option>';
+            NOM_options_str  += '<option value="Trafla Gottron">Trafla Gottron</option>';
+            NOM_options_str  += '<option value="Treichville">Treichville</option>';
+            NOM_options_str  += '<option value="Trinle-D">Trinle-D</option>';
+            NOM_options_str  += '<option value="Vavoua">Vavoua</option>';
+            NOM_options_str  += '<option value="Yamoussoukro">Yamoussoukro</option>';
+            NOM_options_str  += '<option value="Zaguieta">Zaguieta</option>';
+            NOM_options_str  += '<option value="Zangué">Zangué</option>';
+            NOM_options_str  += '<option value="Zoukougbeu">Zoukougbeu</option>';
+            NOM_options_str  += '<option value="Zuenoula">Zuenoula</option>';
+            sel_NOM.innerHTML = NOM_options_str;
+            div_NOM.appendChild(sel_NOM);
+            var lab_NOM = document.createElement('div');
+            lab_NOM.innerHTML = 'NOM';
+            lab_NOM.className = 'filterlabel';
+            div_NOM.appendChild(lab_NOM);
+            var reset_NOM = document.createElement('div');
+            reset_NOM.innerHTML = 'clear filter';
+            reset_NOM.className = 'filterlabel';
+            reset_NOM.onclick = function() {
+                var options = document.getElementById("sel_NOM").options;
+                for (var i=0; i < options.length; i++) {
+                    options[i].selected = false;
+                }
+                filterFunc();
+            };
+            div_NOM.appendChild(reset_NOM);
+            document.getElementById("menu").appendChild(
+                document.createElement("div"));
+            var div_LOCALITE = document.createElement('div');
+            div_LOCALITE.id = "div_LOCALITE";
+            div_LOCALITE.className= "filterselect";
+            document.getElementById("menu").appendChild(div_LOCALITE);
+            sel_LOCALITE = document.createElement('select');
+            sel_LOCALITE.multiple = true;
+            sel_LOCALITE.size = 10;
+            sel_LOCALITE.id = "sel_LOCALITE";
+            var LOCALITE_options_str = "<option value='' unselected></option>";
+            sel_LOCALITE.onchange = function(){filterFunc()};
+            LOCALITE_options_str  += '<option value="ABENGOUROU">ABENGOUROU</option>';
+            LOCALITE_options_str  += '<option value="ABOISSO">ABOISSO</option>';
+            LOCALITE_options_str  += '<option value="ADJAME">ADJAME</option>';
+            LOCALITE_options_str  += '<option value="BAYOTA">BAYOTA</option>';
+            LOCALITE_options_str  += '<option value="BEDIALA">BEDIALA</option>';
+            LOCALITE_options_str  += '<option value="BELLE-VILLE">BELLE-VILLE</option>';
+            LOCALITE_options_str  += '<option value="BINGERVILLE">BINGERVILLE</option>';
+            LOCALITE_options_str  += '<option value="BINOUFLA">BINOUFLA</option>';
+            LOCALITE_options_str  += '<option value="BLANOUFLA">BLANOUFLA</option>';
+            LOCALITE_options_str  += '<option value="BONDOUKOU">BONDOUKOU</option>';
+            LOCALITE_options_str  += '<option value="BONON">BONON</option>';
+            LOCALITE_options_str  += '<option value="BOUAFLE">BOUAFLE</option>';
+            LOCALITE_options_str  += '<option value="BOUAKE">BOUAKE</option>';
+            LOCALITE_options_str  += '<option value="BOUNA">BOUNA</option>';
+            LOCALITE_options_str  += '<option value="DALOA">DALOA</option>';
+            LOCALITE_options_str  += '<option value="DJENEDOUFLA">DJENEDOUFLA</option>';
+            LOCALITE_options_str  += '<option value="GAGNOA">GAGNOA</option>';
+            LOCALITE_options_str  += '<option value="GOBAZRA">GOBAZRA</option>';
+            LOCALITE_options_str  += '<option value="GONATE">GONATE</option>';
+            LOCALITE_options_str  += '<option value="HUAFLA">HUAFLA</option>';
+            LOCALITE_options_str  += '<option value="ISSIA">ISSIA</option>';
+            LOCALITE_options_str  += '<option value="KETESSO">KETESSO</option>';
+            LOCALITE_options_str  += '<option value="KORHOGO">KORHOGO</option>';
+            LOCALITE_options_str  += '<option value="MAN">MAN</option>';
+            LOCALITE_options_str  += '<option value="NASSIAN">NASSIAN</option>';
+            LOCALITE_options_str  += '<option value="ODIENNE">ODIENNE</option>';
+            LOCALITE_options_str  += '<option value="OUME">OUME</option>';
+            LOCALITE_options_str  += '<option value="PELEZI">PELEZI</option>';
+            LOCALITE_options_str  += '<option value="SAN PEDRO">SAN PEDRO</option>';
+            LOCALITE_options_str  += '<option value="SIETINFLA">SIETINFLA</option>';
+            LOCALITE_options_str  += '<option value="SINFRA">SINFRA</option>';
+            LOCALITE_options_str  += '<option value="TAI">TAI</option>';
+            LOCALITE_options_str  += '<option value="TRAFLA-GOTRON">TRAFLA-GOTRON</option>';
+            LOCALITE_options_str  += '<option value="TREICHVILLE">TREICHVILLE</option>';
+            LOCALITE_options_str  += '<option value="TRINLE-D">TRINLE-D</option>';
+            LOCALITE_options_str  += '<option value="VAVOUA">VAVOUA</option>';
+            LOCALITE_options_str  += '<option value="YAMOUSSOUKRO">YAMOUSSOUKRO</option>';
+            LOCALITE_options_str  += '<option value="ZAGUIETA">ZAGUIETA</option>';
+            LOCALITE_options_str  += '<option value="ZANGUE">ZANGUE</option>';
+            LOCALITE_options_str  += '<option value="ZOUKOUGBEU">ZOUKOUGBEU</option>';
+            LOCALITE_options_str  += '<option value="ZUENOULA">ZUENOULA</option>';
+            sel_LOCALITE.innerHTML = LOCALITE_options_str;
+            div_LOCALITE.appendChild(sel_LOCALITE);
+            var lab_LOCALITE = document.createElement('div');
+            lab_LOCALITE.innerHTML = 'LOCALITE';
+            lab_LOCALITE.className = 'filterlabel';
+            div_LOCALITE.appendChild(lab_LOCALITE);
+            var reset_LOCALITE = document.createElement('div');
+            reset_LOCALITE.innerHTML = 'clear filter';
+            reset_LOCALITE.className = 'filterlabel';
+            reset_LOCALITE.onclick = function() {
+                var options = document.getElementById("sel_LOCALITE").options;
+                for (var i=0; i < options.length; i++) {
+                    options[i].selected = false;
+                }
+                filterFunc();
+            };
+            div_LOCALITE.appendChild(reset_LOCALITE);
+            document.getElementById("menu").appendChild(
+                document.createElement("div"));
+            var div_DIST_SANIT = document.createElement('div');
+            div_DIST_SANIT.id = "div_DIST_SANIT";
+            div_DIST_SANIT.className= "filterselect";
+            document.getElementById("menu").appendChild(div_DIST_SANIT);
+            sel_DIST_SANIT = document.createElement('select');
+            sel_DIST_SANIT.multiple = true;
+            sel_DIST_SANIT.size = 10;
+            sel_DIST_SANIT.id = "sel_DIST_SANIT";
+            var DIST_SANIT_options_str = "<option value='' unselected></option>";
+            sel_DIST_SANIT.onchange = function(){filterFunc()};
+            DIST_SANIT_options_str  += '<option value="ABENGOUROU">ABENGOUROU</option>';
+            DIST_SANIT_options_str  += '<option value="ABOBO EST">ABOBO EST</option>';
+            DIST_SANIT_options_str  += '<option value="ABOBO-OUEST">ABOBO-OUEST</option>';
+            DIST_SANIT_options_str  += '<option value="ABOISSO">ABOISSO</option>';
+            DIST_SANIT_options_str  += '<option value="ADIAKE">ADIAKE</option>';
+            DIST_SANIT_options_str  += '<option value="ADJAME-PLATEAU-ATTECOUBE">ADJAME-PLATEAU-ATTECOUBE</option>';
+            DIST_SANIT_options_str  += '<option value="ADZOPE">ADZOPE</option>';
+            DIST_SANIT_options_str  += '<option value="AGBOVILLE">AGBOVILLE</option>';
+            DIST_SANIT_options_str  += '<option value="AGNIBILEKROU">AGNIBILEKROU</option>';
+            DIST_SANIT_options_str  += '<option value="AKOUPE">AKOUPE</option>';
+            DIST_SANIT_options_str  += '<option value="ALEPE">ALEPE</option>';
+            DIST_SANIT_options_str  += '<option value="ANYAMA">ANYAMA</option>';
+            DIST_SANIT_options_str  += '<option value="BANGOLO">BANGOLO</option>';
+            DIST_SANIT_options_str  += '<option value="BEOUMI">BEOUMI</option>';
+            DIST_SANIT_options_str  += '<option value="BETTIE">BETTIE</option>';
+            DIST_SANIT_options_str  += '<option value="BIANKOUMA">BIANKOUMA</option>';
+            DIST_SANIT_options_str  += '<option value="BLOLEQUIN">BLOLEQUIN</option>';
+            DIST_SANIT_options_str  += '<option value="BOCANDA">BOCANDA</option>';
+            DIST_SANIT_options_str  += '<option value="BONDOUKOU">BONDOUKOU</option>';
+            DIST_SANIT_options_str  += '<option value="BONGOUANOU">BONGOUANOU</option>';
+            DIST_SANIT_options_str  += '<option value="BOUAFLE">BOUAFLE</option>';
+            DIST_SANIT_options_str  += '<option value="BOUAKE NORD-EST">BOUAKE NORD-EST</option>';
+            DIST_SANIT_options_str  += '<option value="BOUAKE NORD-OUEST">BOUAKE NORD-OUEST</option>';
+            DIST_SANIT_options_str  += '<option value="BOUAKE SUD">BOUAKE SUD</option>';
+            DIST_SANIT_options_str  += '<option value="BOUNA">BOUNA</option>';
+            DIST_SANIT_options_str  += '<option value="BOUNDIALI">BOUNDIALI</option>';
+            DIST_SANIT_options_str  += '<option value="COCODY-BINGERVILLE">COCODY-BINGERVILLE</option>';
+            DIST_SANIT_options_str  += '<option value="DABAKALA">DABAKALA</option>';
+            DIST_SANIT_options_str  += '<option value="DABOU">DABOU</option>';
+            DIST_SANIT_options_str  += '<option value="DALOA">DALOA</option>';
+            DIST_SANIT_options_str  += '<option value="DANANE">DANANE</option>';
+            DIST_SANIT_options_str  += '<option value="DAOUKRO">DAOUKRO</option>';
+            DIST_SANIT_options_str  += '<option value="DIDIEVI">DIDIEVI</option>';
+            DIST_SANIT_options_str  += '<option value="DIMBOKRO">DIMBOKRO</option>';
+            DIST_SANIT_options_str  += '<option value="DIVO">DIVO</option>';
+            DIST_SANIT_options_str  += '<option value="DUEKOUE">DUEKOUE</option>';
+            DIST_SANIT_options_str  += '<option value="FERKESSEDOUGOU">FERKESSEDOUGOU</option>';
+            DIST_SANIT_options_str  += '<option value="FRESCO">FRESCO</option>';
+            DIST_SANIT_options_str  += '<option value="GAGNOA">GAGNOA</option>';
+            DIST_SANIT_options_str  += '<option value="GRAND-BASSAM">GRAND-BASSAM</option>';
+            DIST_SANIT_options_str  += '<option value="GRAND-LAHOU">GRAND-LAHOU</option>';
+            DIST_SANIT_options_str  += '<option value="GUEYO">GUEYO</option>';
+            DIST_SANIT_options_str  += '<option value="GUIGLO">GUIGLO</option>';
+            DIST_SANIT_options_str  += '<option value="ISSIA">ISSIA</option>';
+            DIST_SANIT_options_str  += '<option value="JACQUEVILLE">JACQUEVILLE</option>';
+            DIST_SANIT_options_str  += '<option value="KATIOLA">KATIOLA</option>';
+            DIST_SANIT_options_str  += '<option value="KORHOGO">KORHOGO</option>';
+            DIST_SANIT_options_str  += '<option value="KOUIBLY">KOUIBLY</option>';
+            DIST_SANIT_options_str  += '<option value="KOUMASSI-PORT BOUET-VRIDI">KOUMASSI-PORT BOUET-VRIDI</option>';
+            DIST_SANIT_options_str  += '<option value="LAKOTA">LAKOTA</option>';
+            DIST_SANIT_options_str  += '<option value="M&apos;BAHIAKRO">M&apos;BAHIAKRO</option>';
+            DIST_SANIT_options_str  += '<option value="MAN">MAN</option>';
+            DIST_SANIT_options_str  += '<option value="MANKONO">MANKONO</option>';
+            DIST_SANIT_options_str  += '<option value="MINIGNAN">MINIGNAN</option>';
+            DIST_SANIT_options_str  += '<option value="NASSIAN">NASSIAN</option>';
+            DIST_SANIT_options_str  += '<option value="NIAKARAMADOUGOU">NIAKARAMADOUGOU</option>';
+            DIST_SANIT_options_str  += '<option value="ODIENNE">ODIENNE</option>';
+            DIST_SANIT_options_str  += '<option value="OUANGOLODOUGOU">OUANGOLODOUGOU</option>';
+            DIST_SANIT_options_str  += '<option value="OUME">OUME</option>';
+            DIST_SANIT_options_str  += '<option value="PRIKRO">PRIKRO</option>';
+            DIST_SANIT_options_str  += '<option value="SAKASSOU">SAKASSOU</option>';
+            DIST_SANIT_options_str  += '<option value="SAN PEDRO">SAN PEDRO</option>';
+            DIST_SANIT_options_str  += '<option value="SASSANDRA">SASSANDRA</option>';
+            DIST_SANIT_options_str  += '<option value="SEGUELA">SEGUELA</option>';
+            DIST_SANIT_options_str  += '<option value="SIKENSI">SIKENSI</option>';
+            DIST_SANIT_options_str  += '<option value="SINFRA">SINFRA</option>';
+            DIST_SANIT_options_str  += '<option value="SOUBRE">SOUBRE</option>';
+            DIST_SANIT_options_str  += '<option value="TABOU">TABOU</option>';
+            DIST_SANIT_options_str  += '<option value="TANDA">TANDA</option>';
+            DIST_SANIT_options_str  += '<option value="TENGRELA">TENGRELA</option>';
+            DIST_SANIT_options_str  += '<option value="TIASSALE">TIASSALE</option>';
+            DIST_SANIT_options_str  += '<option value="TIEBISSOU">TIEBISSOU</option>';
+            DIST_SANIT_options_str  += '<option value="TOUBA">TOUBA</option>';
+            DIST_SANIT_options_str  += '<option value="TOULEPLEU">TOULEPLEU</option>';
+            DIST_SANIT_options_str  += '<option value="TOUMODI">TOUMODI</option>';
+            DIST_SANIT_options_str  += '<option value="TREICHVILLE-MARCORY">TREICHVILLE-MARCORY</option>';
+            DIST_SANIT_options_str  += '<option value="VAVOUA">VAVOUA</option>';
+            DIST_SANIT_options_str  += '<option value="YAMOUSSOUKRO">YAMOUSSOUKRO</option>';
+            DIST_SANIT_options_str  += '<option value="YOPOUGON EST">YOPOUGON EST</option>';
+            DIST_SANIT_options_str  += '<option value="YOPOUGON OUEST SONGON">YOPOUGON OUEST SONGON</option>';
+            DIST_SANIT_options_str  += '<option value="ZOUAN-HOUNIEN">ZOUAN-HOUNIEN</option>';
+            DIST_SANIT_options_str  += '<option value="ZUENOULA">ZUENOULA</option>';
+            sel_DIST_SANIT.innerHTML = DIST_SANIT_options_str;
+            div_DIST_SANIT.appendChild(sel_DIST_SANIT);
+            var lab_DIST_SANIT = document.createElement('div');
+            lab_DIST_SANIT.innerHTML = 'DIST_SANIT';
+            lab_DIST_SANIT.className = 'filterlabel';
+            div_DIST_SANIT.appendChild(lab_DIST_SANIT);
+            var reset_DIST_SANIT = document.createElement('div');
+            reset_DIST_SANIT.innerHTML = 'clear filter';
+            reset_DIST_SANIT.className = 'filterlabel';
+            reset_DIST_SANIT.onclick = function() {
+                var options = document.getElementById("sel_DIST_SANIT").options;
+                for (var i=0; i < options.length; i++) {
+                    options[i].selected = false;
+                }
+                filterFunc();
+            };
+            div_DIST_SANIT.appendChild(reset_DIST_SANIT);
+            document.getElementById("menu").appendChild(
+                document.createElement("div"));
+            var div_Nature = document.createElement('div');
+            div_Nature.id = "div_Nature";
+            div_Nature.className= "filterselect";
+            document.getElementById("menu").appendChild(div_Nature);
+            sel_Nature = document.createElement('select');
+            sel_Nature.multiple = true;
+            sel_Nature.size = 10;
+            sel_Nature.id = "sel_Nature";
+            var Nature_options_str = "<option value='' unselected></option>";
+            sel_Nature.onchange = function(){filterFunc()};
+            Nature_options_str  += '<option value="CHR">CHR</option>';
+            Nature_options_str  += '<option value="CHS">CHS</option>';
+            Nature_options_str  += '<option value="CHU">CHU</option>';
+            Nature_options_str  += '<option value="CSR">CSR</option>';
+            Nature_options_str  += '<option value="CSU">CSU</option>';
+            Nature_options_str  += '<option value="HG">HG</option>';
+            Nature_options_str  += '<option value="INSP">INSP</option>';
+            Nature_options_str  += '<option value="Jublile">Jublile</option>';
+            Nature_options_str  += '<option value="PRCT">PRCT</option>';
+            Nature_options_str  += '<option value="Psy">Psy</option>';
+            Nature_options_str  += '<option value="RACH">RACH</option>';
+            Nature_options_str  += '<option value="ST. Camille">ST. Camille</option>';
+            Nature_options_str  += '<option value="St.Camille">St.Camille</option>';
+            Nature_options_str  += '<option value="VDP">VDP</option>';
+            sel_Nature.innerHTML = Nature_options_str;
+            div_Nature.appendChild(sel_Nature);
+            var lab_Nature = document.createElement('div');
+            lab_Nature.innerHTML = 'Nature';
+            lab_Nature.className = 'filterlabel';
+            div_Nature.appendChild(lab_Nature);
+            var reset_Nature = document.createElement('div');
+            reset_Nature.innerHTML = 'clear filter';
+            reset_Nature.className = 'filterlabel';
+            reset_Nature.onclick = function() {
+                var options = document.getElementById("sel_Nature").options;
+                for (var i=0; i < options.length; i++) {
+                    options[i].selected = false;
+                }
+                filterFunc();
+            };
+            div_Nature.appendChild(reset_Nature);
+            document.getElementById("menu").appendChild(
+                document.createElement("div"));
+            var div_Type = document.createElement('div');
+            div_Type.id = "div_Type";
+            div_Type.className= "filterselect";
+            document.getElementById("menu").appendChild(div_Type);
+            sel_Type = document.createElement('select');
+            sel_Type.multiple = true;
+            sel_Type.size = 5;
+            sel_Type.id = "sel_Type";
+            var Type_options_str = "<option value='' unselected></option>";
+            sel_Type.onchange = function(){filterFunc()};
+            Type_options_str  += '<option value="A Risque">A Risque</option>';
+            Type_options_str  += '<option value="A risque">A risque</option>';
+            Type_options_str  += '<option value="Endemique">Endemique</option>';
+            Type_options_str  += '<option value="Hypo-Endemique">Hypo-Endemique</option>';
+            Type_options_str  += '<option value="Psy">Psy</option>';
+            sel_Type.innerHTML = Type_options_str;
+            div_Type.appendChild(sel_Type);
+            var lab_Type = document.createElement('div');
+            lab_Type.innerHTML = 'Type';
+            lab_Type.className = 'filterlabel';
+            div_Type.appendChild(lab_Type);
+            var reset_Type = document.createElement('div');
+            reset_Type.innerHTML = 'clear filter';
+            reset_Type.className = 'filterlabel';
+            reset_Type.onclick = function() {
+                var options = document.getElementById("sel_Type").options;
+                for (var i=0; i < options.length; i++) {
+                    options[i].selected = false;
+                }
+                filterFunc();
+            };
+            div_Type.appendChild(reset_Type);
+        </script>
+    </body>
+</html>
