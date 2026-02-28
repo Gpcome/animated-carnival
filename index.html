@@ -1,7 +1,11 @@
 <!doctype html>
 <html lang="en">
-	<iframe style="width: 100%; height: 300px; border: 0;" allowfullscreen allow="geolocation" src="//umap.openstreetmap.fr/fr/map/carte-inondation-abidjan-2025_1228952?scaleControl=false&miniMap=false&scrollWheelZoom=false&zoomControl=true&editMode=disabled&moreControl=true&searchControl=null&tilelayersControl=null&embedControl=null&datalayersControl=true&onLoadPanel=caption&captionBar=false&captionMenus=true"></iframe><p><a href="//umap.openstreetmap.fr/fr/map/carte-inondation-abidjan-2025_1228952?scaleControl=false&miniMap=false&scrollWheelZoom=true&zoomControl=true&editMode=disabled&moreControl=true&searchControl=null&tilelayersControl=null&embedControl=null&datalayersControl=true&onLoadPanel=caption&captionBar=false&captionMenus=true">Voir en plein écran</a></p>
-    <head>
+		<meta charset="UTF-8">
+    <title>Plateforme Web Mapping</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
         <meta charset="utf-8">
         <meta http-equiv="X-UA-Compatible" content="IE=edge">
         <meta name="viewport" content="initial-scale=1,user-scalable=no,maximum-scale=1,width=device-width">
@@ -23,10 +27,129 @@
             height: 892px;
         }
         </style>
+	body{
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: hsl(216, 4%, 74%);
+        }
+
+        /* ===== HEADER / LEADER ===== */
+        header {
+            background-color: white;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        }
+
+        .logo-container {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .logo-container img {
+            height: 90px;
+            object-fit: contain;
+        }
+
+        .title {
+            font-size: 22px;
+            font-weight: bold;
+            color: #1b3c59;
+        }
+
+        /* ===== MAIN CONTENT ===== */
+        .container {
+            padding: 45px;
+        }
+
+        /* Carte */
+        #map {
+            height: 650px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 4px rgba(0,0,0,0.1);
+        }
+
+        /* Commentaires */
+        .comments {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .comment-box {
+            flex: 1;
+            min-width: 280px;
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.08);
+        }
+
+        .comment-box h3 {
+            margin-top: 0;
+            color: #0a4d68;
+        }
+
+        footer {
+            text-align: center;
+            padding: 15px;
+            background-color: #1b3c59;
+            color: white;
+            margin-top: 20px;
+        }
+    </style>
         <title></title>
     </head>
     <body>
-		
+		<!-- ===== HEADER AVEC LOGOS ===== -->
+    <header>
+        <div class="logo-container">
+            <img src="/Volumes/DATA/Test_leaflet_Licence/igt-logo.png" alt="Institut de Géographie Tropicale">
+            <img src="/Volumes/DATA/Test_leaflet_Licence/logo SHS.png" alt="UFR SHS">
+            <img src="/Volumes/DATA/Test_leaflet_Licence/logo-UFHB.png" alt="Université Félix Houphouët-Boigny">
+        </div>
+        <div class="title">
+    Plateforme de Visualisation Cartographique LICENCE 3<br>
+    GEOMATIQUE ET STRATEGIES SPATIALES
+</div>
+    </header>
+
+    <!-- ===== CONTENU PRINCIPAL ===== -->
+    <div class="container">
+
+        <!-- Espace Carte -->
+        <div id="map"></div>
+
+        <!-- Blocs de commentaires -->
+        <div class="comments">
+            <div class="comment-box">
+                <h3>Commentaire 1</h3>
+                <p>
+                    Espace réservé pour l’analyse cartographique,
+                    l’interprétation des données spatiales ou les observations terrain.
+                </p>
+            </div>
+
+            <div class="comment-box">
+                <h3>Commentaire 2</h3>
+                <p>
+                    Espace pour les recommandations, conclusions
+                    ou remarques méthodologiques liées à la carte.
+                </p>
+            </div>
+        </div>
+
+    </div>
+
+    <footer>
+        © 2026 - Institut de Géographie Tropicale | UFHB
+    </footer>
+
         <div id="map">
         </div>
         <script src="js/qgis2web_expressions.js"></script>
